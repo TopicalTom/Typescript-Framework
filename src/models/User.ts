@@ -1,66 +1,59 @@
-import axios, { AxiosResponse } from 'axios';
+import { Eventing } from './Eventing';
+import { Sync } from './Sync';
+import { Attributes } from './Attributes';
+import { AxiosResponse } from 'axios';
 
-interface UserProps {
+export interface UserProps {
     id?: number,
     name?: string,
     age?: number,
 }
 
-type Callback = () => void; // Type alias
+const rootUrl = 'http://localhost:3000/users'
 
 export class User {
-    events: { [key: string]: Callback[] } = {};
+    private events: Eventing = new Eventing();
+    private sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
+    private attributes: Attributes<UserProps>;
 
-    constructor(private data: UserProps) {};
-
-    // Retrieves User Props
-    get(propName: string): (number | string) {
-        return this.data[propName];
+    constructor(attrs: UserProps) {
+        this.attributes = new Attributes<UserProps>(attrs);
     };
 
-    // Updates User Props
+    // Single-method
+    // Uses get (getter accessor) for direct access to nested methods
+    // Uses arrow functions within methods to bind "this" to the right context
+    get get() { return this.attributes.get; };
+
+    get on() { return this.events.on; };
+
+    get trigger() { return this.events.trigger; };
+
+    // Multi-method
     set(update: UserProps): void {
-        Object.assign(this.data, update);
+        this.attributes.set(update);
+        this.events.trigger('change');
     };
 
-    // Creates Event Types
-    on(eventName: string, callback: Callback): void {
-        const handlers = this.events[eventName] || [];
-        handlers.push(callback);
-        this.events[eventName] = handlers;
-    };
+    fetch(): void {
+        const id = this.attributes.get('id');
 
-    // Calls Event Types
-    trigger(eventName: string): void {
-        const handlers = this.events[eventName];
+        if (typeof id !== 'number') {
+            throw new Error('Cannot fetch withouut id')
+        };
 
-        if (!handlers || handlers.length === 0) {
-            return;
-        }
-
-        handlers.forEach(callback => {
-            callback();
+        this.sync.fetch(id).then((response: AxiosResponse): void => {
+            this.set(response.data);
         });
     };
 
-    // Grabs User from Server and Sets as Current User
-    fetch(): void {
-        axios.get(`http://localhost:3000/users/${this.get('id')}`)
-            .then((response: AxiosResponse): void => {
-                this.set(response.data);
-            })
-            .catch(() => {
-                throw Error;
-            });
-    };
-
     save(): void {
-        const id = this.get('id');
-
-        if (id) {
-            axios.put(`http://localhost:3000/users/${id}`, this.data);
-        } else {
-            axios.post('http://localhost:3000/users/', this.data);
-        };
+        this.sync.save(this.attributes.getAll())
+        .then((response: AxiosResponse): void => {
+            this.trigger('save');
+        })
+        .catch(() => {
+            this.trigger('error');
+        });
     };
 };
