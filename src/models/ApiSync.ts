@@ -5,7 +5,7 @@ interface HasId {
     id?: number
 };
 
-export class Sync<T extends HasId > {
+export class ApiSync<T extends HasId > {
     constructor(public rootUrl: string) {};
     
     // Grabs User from Server and Sets as Current User

@@ -1,5 +1,3 @@
-import axios, { AxiosResponse } from 'axios';
-
 type Callback = () => void; // Type alias
 
 export class Eventing {
