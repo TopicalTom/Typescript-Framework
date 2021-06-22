@@ -3,7 +3,7 @@ import { Eventing } from './Eventing';
 
 export class Collection<T, K> { // T can be User, K can be UserProps
     models: T[] = [];
-    events: Eventing;
+    events: Eventing = new Eventing();
 
     constructor(
         public rootUrl: string,
